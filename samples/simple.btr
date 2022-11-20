@@ -1,0 +1,5 @@
+{package simple}
+
+{html hello}
+  <p>Hello, world!</p>
+{/}
