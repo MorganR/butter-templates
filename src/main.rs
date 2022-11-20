@@ -1,3 +1,5 @@
+use std::fs;
+
 use clap::Parser;
 
 /// Simple program to greet a person
@@ -10,7 +12,12 @@ struct Args {
 }
 
 fn main() {
-   let args = Args::parse();
+    let args = Args::parse();
 
-   println!("Parsing file {}", args.template);
+    println!("Parsing file {}", args.template);
+
+    let tmpl_contents = fs::read_to_string(&args.template)
+        .expect(format!("Couldn't read the template at {}", &args.template).as_str());
+    
+    println!("Contents:\n{}", tmpl_contents);
 }
