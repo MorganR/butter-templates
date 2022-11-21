@@ -5,13 +5,13 @@ mod parser;
 
 use std::fs;
 
-use clap::Parser;
-use pest::Parser as PParser;
+use clap::Parser as ClapParser;
+use pest::Parser;
 use crate::parser::{ButterParser, Rule};
 
 
 /// Compiler for butter templates.
-#[derive(Parser, Debug)]
+#[derive(ClapParser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
    /// Template file to compile.
