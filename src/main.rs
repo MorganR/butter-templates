@@ -1,6 +1,14 @@
+#[macro_use]
+extern crate pest_derive;
+
+mod parser;
+
 use std::fs;
 
 use clap::Parser;
+use pest::Parser as PParser;
+use crate::parser::{ButterParser, Rule};
+
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -20,4 +28,9 @@ fn main() {
         .expect(format!("Couldn't read the template at {}", &args.template).as_str());
     
     println!("Contents:\n{}", tmpl_contents);
+
+    let parser = ButterParser::parse(Rule::main, tmpl_contents.as_str());
+    let pairs = parser.expect("Failed to parse template.");
+
+    println!("Parsed: {:?}", pairs);
 }

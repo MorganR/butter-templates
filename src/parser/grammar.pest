@@ -1,0 +1,52 @@
+WHITESPACE = _{ SPACE_SEPARATOR | "\t" | NEWLINE }
+comment_contents = { !NEWLINE ~ ANY }
+COMMENT = _{ "//" ~ comment_contents* ~ NEWLINE }
+
+package_name = @{ ASCII_ALPHA_LOWER ~ (ASCII_ALPHA_LOWER | ASCII_DIGIT)* ~ ("." ~ package_name)* }
+package_statement = { "{" ~ "package" ~ package_name ~ "}" }
+
+uri_safe_path_segment = @{ ASCII_ALPHANUMERIC }
+uri_safe_path = @{ uri_safe_path_segment+ ~ ( "/" ~ uri_safe_path_segment )* }
+
+path_segment = @{ LETTER | NUMBER | CONNECTOR_PUNCTUATION | DASH_PUNCTUATION | SYMBOL | "." }
+path_divider = @{ "/" }
+path = @{ path_segment+ ~ (path_divider ~ path_segment)*}
+
+identifier = { XID_START ~ XID_CONTINUE* }
+import_item = { identifier }
+import_rename = { identifier }
+import_items = { import_item ~ ("as" ~ import_rename)? ~ ("," ~ import_items)* }
+import_selection = { "*" | import_items }
+import_source = @{"'" ~ path ~ "'"}
+import_statement = { "import " ~ import_items ~ "from" ~ import_source } 
+
+call = { identifier ~ "()" }
+literal = { "lb" | "rb" }
+inner_statement = { "{" ~ (call | literal) ~ "}"}
+
+html_statement = { "html" ~ identifier }
+html_character = _{ "<" | ">" | LETTER | CONNECTOR_PUNCTUATION | DASH_PUNCTUATION | INITIAL_PUNCTUATION | FINAL_PUNCTUATION | OTHER_PUNCTUATION | MARK | NUMBER | SYMBOL | SEPARATOR | OTHER }
+raw_html = { html_character+ }
+html_content = { 
+  inner_statement
+  | raw_html
+}
+
+block_statement_start = _{ "{" ~ html_statement ~ "}" }
+block_content = { html_content }
+block_statement_end = _{ "{/}" }
+block_statement = {
+  block_statement_start ~
+  (block_statement | block_content) ~
+  block_statement_end
+}
+
+main = {
+  SOI ~
+  package_statement ~
+
+  import_statement* ~
+
+  block_statement+ ~
+  EOI
+}
