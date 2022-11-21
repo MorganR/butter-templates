@@ -10,7 +10,7 @@ use pest::Parser as PParser;
 use crate::parser::{ButterParser, Rule};
 
 
-/// Simple program to greet a person
+/// Compiler for butter templates.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
