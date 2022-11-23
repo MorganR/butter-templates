@@ -5,17 +5,19 @@ COMMENT = _{ "//" ~ comment_contents* ~ NEWLINE }
 package_name = @{ ASCII_ALPHA_LOWER ~ (ASCII_ALPHA_LOWER | ASCII_DIGIT)* ~ ("." ~ package_name)* }
 package_statement = _{ "{" ~ "package" ~ package_name ~ "}" }
 
-path_segment = @{ LETTER | NUMBER | CONNECTOR_PUNCTUATION | DASH_PUNCTUATION | SYMBOL | "." }
 path_divider = _{ "/" }
-path = @{ path_segment+ ~ (path_divider ~ path)? }
+import_path_segment_character = _{ !(path_divider | "'") ~ ANY}
+import_path = { import_path_segment_character+ ~ (path_divider ~ import_path)? }
 
-identifier = @{ XID_START ~ XID_CONTINUE* }
+identifier_start = _{LETTER}
+identifier_continue = _{LETTER | NUMBER}
+identifier = @{ identifier_start ~ identifier_continue* }
 import_item = { identifier }
 import_rename = { identifier }
 import_wild = { "*" ~ "as" ~ import_rename }
 import_items = { import_item ~ ("as" ~ import_rename)? ~ ("," ~ import_items)* }
 import_selection = _{ import_wild | ( "{" ~ import_items ~ "}" ) }
-import_source = @{ "'" ~ path ~ "'" }
+import_source = @{ "'" ~ import_path ~ "'" }
 import_statement = { "import" ~ import_selection ~ "from" ~ import_source } 
 
 call = { identifier ~ "()" }
@@ -23,18 +25,26 @@ literal = { "lb" | "rb" }
 inner_statement = { !block_statement_end ~ "{" ~ (call | literal) ~ "}"}
 
 html_statement = { "html" ~ identifier }
-html_character = _{ !("{" | "}") ~ ANY }
-raw_html = { html_character+ }
-html_content = _{ 
-  ( inner_statement | raw_html ) ~ html_content?
-}
+html_attribute_key = _{ identifier }
+html_attribute_plain_value = @{ (!("\"" | "{") ~ ANY)+ }
+// Silent recursive rule for simpler parsing of multiple attribute values. 
+html_attribute_nested_value = _{ (inner_statement | html_attribute_plain_value) ~ html_attribute_nested_value? }
+html_attribute_value = { html_attribute_nested_value }
+html_attribute = { (inner_statement | html_attribute_key) ~ ("=\"" ~ html_attribute_value ~ "\"")? }
+html_text_character = _{ !("{" | "<") ~ ANY }
+html_text = @{ html_text_character+ }
+html_content = _{ (inner_statement | html_tag | html_text) ~ (html_content)? }
+html_tag = { 
+  !("</" ~ identifier ~ ">") ~ "<" ~ PUSH(identifier) ~ html_attribute* ~ ">" ~
+  html_content ~
+  "</" ~ POP ~ ">" }
 
 block_statement_start = _{ "{" ~ html_statement ~ "}" }
 block_content = { html_content }
 block_statement_end = _{ "{/}" }
 block_statement = {
   block_statement_start ~
-  (block_statement | block_content) ~
+  block_content ~
   block_statement_end
 }
 
