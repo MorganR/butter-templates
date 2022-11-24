@@ -20,9 +20,10 @@ import_selection = _{ import_wild | ( "{" ~ import_items ~ "}" ) }
 import_source = @{ "'" ~ import_path ~ "'" }
 import_statement = { "import" ~ import_selection ~ "from" ~ import_source } 
 
+statement_end = _{ "{/}" }
 call = { identifier ~ "()" }
 literal = { "lb" | "rb" }
-inner_statement = { !block_statement_end ~ "{" ~ (call | literal) ~ "}"}
+inner_statement = { !statement_end ~ "{" ~ (call | literal) ~ "}"}
 
 html_attribute_key = _{ identifier }
 html_attribute_plain_value = @{ (!("\"" | "{") ~ ANY)+ }
@@ -32,21 +33,19 @@ html_attribute_value = { html_attribute_nested_value }
 html_attribute = { (inner_statement | html_attribute_key) ~ ("=\"" ~ html_attribute_value ~ "\"")? }
 html_text_character = _{ !("{" | "<") ~ ANY }
 html_text = @{ html_text_character+ }
-html_content = _{ (inner_statement | html_tag | html_text) ~ (html_content)? }
-html_tag = { 
-  !("</" ~ identifier ~ ">") ~ "<" ~ PUSH(identifier) ~ html_attribute* ~ ">" ~
-  html_content ~
-  "</" ~ POP ~ ">" }
+html_tag_void = { "<" ~ identifier ~ html_attribute* ~ "/>" }
+html_tag_open_or_void = { "<" ~ identifier ~ html_attribute* ~ ">" }
+html_tag_close = { "</" ~ identifier ~ ">" }
+html_content = _{ (inner_statement | html_tag_close | html_tag_void | html_tag_open_or_void | html_text) ~ html_content? }
 
 block_type = { "html" }
 // TODO: Add arguments
 block_statement_start = _{ "{" ~ block_type ~ identifier ~ "()" ~ "}" }
 block_content = { html_content }
-block_statement_end = _{ "{/}" }
 block_statement = {
   block_statement_start ~
   block_content ~
-  block_statement_end
+  statement_end
 }
 
 main = {

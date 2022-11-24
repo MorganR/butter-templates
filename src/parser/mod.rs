@@ -178,12 +178,15 @@ mod tests {
         let mut content_pairs = block_pairs.next().unwrap().into_inner();
         assert_pairs!(
             content_pairs,
-            vec![(
-                Rule::html_tag,
-                "<div class=\"foo\">
-          <p>{lb}bar{rb}</p>
-        </div>"
-            )]
+            vec![
+                (Rule::html_tag_open_or_void, "<div class=\"foo\">"),
+                (Rule::html_tag_open_or_void, "<p>"),
+                (Rule::inner_statement, "{lb}"),
+                (Rule::html_text, "bar"),
+                (Rule::inner_statement, "{rb}"),
+                (Rule::html_tag_close, "</p>"),
+                (Rule::html_tag_close, "</div>"),
+            ]
         );
         let mut div_pairs = content_pairs.next().unwrap().into_inner();
         assert_pairs!(
@@ -191,19 +194,24 @@ mod tests {
             vec![
                 (Rule::identifier, "div"),
                 (Rule::html_attribute, "class=\"foo\""),
-                (Rule::html_tag, "<p>{lb}bar{rb}</p>")
             ]
         );
-        _ = div_pairs.next();
-        _ = div_pairs.next();
-        let p_pairs = div_pairs.next().unwrap().into_inner();
+        let p_pairs = content_pairs.next().unwrap().into_inner();
+        assert_pairs!(p_pairs, vec![(Rule::identifier, "p"),]);
+    }
+
+    #[test]
+    fn test_html_void_tag_with_attributes() {
+        let result = ButterParser::parse(Rule::html_content, "<input id=\"id\" />");
+
+        let mut pairs = result.unwrap();
+        assert_rules!(pairs, vec![Rule::html_tag_void]);
+        let mut tag_pairs = pairs.next().unwrap().into_inner();
         assert_pairs!(
-            p_pairs,
+            tag_pairs,
             vec![
-                (Rule::identifier, "p"),
-                (Rule::inner_statement, "{lb}"),
-                (Rule::html_text, "bar"),
-                (Rule::inner_statement, "{rb}"),
+                (Rule::identifier, "input"),
+                (Rule::html_attribute, "id=\"id\""),
             ]
         );
     }
@@ -211,12 +219,22 @@ mod tests {
     #[test]
     fn test_html_tag_with_attributes() {
         let result = ButterParser::parse(
-            Rule::html_tag,
+            Rule::html_content,
             "<h1 class=\"foo {rb}bar\" {someCall()}>contents</h1>",
         );
 
         let mut pairs = result.unwrap();
-        assert_rules!(pairs, vec![Rule::html_tag]);
+        assert_pairs!(
+            pairs,
+            vec![
+                (
+                    Rule::html_tag_open_or_void,
+                    "<h1 class=\"foo {rb}bar\" {someCall()}>"
+                ),
+                (Rule::html_text, "contents"),
+                (Rule::html_tag_close, "</h1>"),
+            ]
+        );
         let mut tag_pairs = pairs.next().unwrap().into_inner();
         assert_pairs!(
             tag_pairs,
@@ -224,7 +242,6 @@ mod tests {
                 (Rule::identifier, "h1"),
                 (Rule::html_attribute, "class=\"foo {rb}bar\""),
                 (Rule::html_attribute, "{someCall()}"),
-                (Rule::html_text, "contents"),
             ]
         );
         _ = tag_pairs.next();
