@@ -149,7 +149,7 @@ mod tests {
     fn test_html_block_statement() {
         let result = ButterParser::parse(
             Rule::block_statement,
-            "{html template}
+            "{html template()}
         <div class=\"foo\">
           <p>{lb}bar{rb}</p>
         </div>
@@ -159,24 +159,47 @@ mod tests {
         let mut pairs = result.unwrap();
         assert_rules!(pairs, vec![Rule::block_statement]);
         let mut block_pairs = pairs.next().unwrap().into_inner();
-        assert_rules!(block_pairs, vec![Rule::html_statement, Rule::block_content]);
-        let html_pairs = block_pairs.next().unwrap().into_inner();
-        assert_pairs!(html_pairs, vec![(Rule::identifier, "template")]);
+        assert_pairs!(
+            block_pairs,
+            vec![
+                (Rule::block_type, "html"),
+                (Rule::identifier, "template"),
+                (
+                    Rule::block_content,
+                    "<div class=\"foo\">
+          <p>{lb}bar{rb}</p>
+        </div>
+        "
+                )
+            ]
+        );
+        _ = block_pairs.next();
+        _ = block_pairs.next();
         let mut content_pairs = block_pairs.next().unwrap().into_inner();
-        assert_pairs!(content_pairs, vec![
-                (Rule::html_tag, 
+        assert_pairs!(
+            content_pairs,
+            vec![(
+                Rule::html_tag,
                 "<div class=\"foo\">
           <p>{lb}bar{rb}</p>
-        </div>")]);
+        </div>"
+            )]
+        );
         let mut div_pairs = content_pairs.next().unwrap().into_inner();
-        assert_pairs!(div_pairs, vec![
+        assert_pairs!(
+            div_pairs,
+            vec![
                 (Rule::identifier, "div"),
                 (Rule::html_attribute, "class=\"foo\""),
-                (Rule::html_tag, "<p>{lb}bar{rb}</p>")]);
+                (Rule::html_tag, "<p>{lb}bar{rb}</p>")
+            ]
+        );
         _ = div_pairs.next();
         _ = div_pairs.next();
         let p_pairs = div_pairs.next().unwrap().into_inner();
-        assert_pairs!(p_pairs, vec![
+        assert_pairs!(
+            p_pairs,
+            vec![
                 (Rule::identifier, "p"),
                 (Rule::inner_statement, "{lb}"),
                 (Rule::html_text, "bar"),
@@ -187,38 +210,46 @@ mod tests {
 
     #[test]
     fn test_html_tag_with_attributes() {
-        let result = ButterParser::parse(Rule::html_tag, "<h1 class=\"foo {rb}bar\" {someCall()}>contents</h1>");
+        let result = ButterParser::parse(
+            Rule::html_tag,
+            "<h1 class=\"foo {rb}bar\" {someCall()}>contents</h1>",
+        );
 
         let mut pairs = result.unwrap();
         assert_rules!(pairs, vec![Rule::html_tag]);
         let mut tag_pairs = pairs.next().unwrap().into_inner();
-        assert_pairs!(tag_pairs, vec![
-            (Rule::identifier, "h1"),
-            (Rule::html_attribute, "class=\"foo {rb}bar\""),
-            (Rule::html_attribute, "{someCall()}"),
-            (Rule::html_text, "contents"),
-            ]);
+        assert_pairs!(
+            tag_pairs,
+            vec![
+                (Rule::identifier, "h1"),
+                (Rule::html_attribute, "class=\"foo {rb}bar\""),
+                (Rule::html_attribute, "{someCall()}"),
+                (Rule::html_text, "contents"),
+            ]
+        );
         _ = tag_pairs.next();
         let mut attr_pairs = tag_pairs.next().unwrap().into_inner();
-        assert_pairs!(attr_pairs, vec![
-            (Rule::identifier, "class"),
-            (Rule::html_attribute_value, "foo {rb}bar"),
-        ]);
+        assert_pairs!(
+            attr_pairs,
+            vec![
+                (Rule::identifier, "class"),
+                (Rule::html_attribute_value, "foo {rb}bar"),
+            ]
+        );
         _ = attr_pairs.next();
         let attr_values = attr_pairs.next().unwrap().into_inner();
-        assert_pairs!(attr_values, vec![
-            (Rule::html_attribute_plain_value, "foo "),
-            (Rule::inner_statement, "{rb}"),
-            (Rule::html_attribute_plain_value, "bar"),
-        ]);
+        assert_pairs!(
+            attr_values,
+            vec![
+                (Rule::html_attribute_plain_value, "foo "),
+                (Rule::inner_statement, "{rb}"),
+                (Rule::html_attribute_plain_value, "bar"),
+            ]
+        );
         let mut attr_pairs = tag_pairs.next().unwrap().into_inner();
-        assert_pairs!(attr_pairs, vec![
-            (Rule::inner_statement, "{someCall()}")
-        ]);
+        assert_pairs!(attr_pairs, vec![(Rule::inner_statement, "{someCall()}")]);
         let statement_pairs = attr_pairs.next().unwrap().into_inner();
-        assert_pairs!(statement_pairs, vec![
-            (Rule::call, "someCall()")
-        ]);
+        assert_pairs!(statement_pairs, vec![(Rule::call, "someCall()")]);
     }
 
     #[test]

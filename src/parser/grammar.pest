@@ -24,7 +24,6 @@ call = { identifier ~ "()" }
 literal = { "lb" | "rb" }
 inner_statement = { !block_statement_end ~ "{" ~ (call | literal) ~ "}"}
 
-html_statement = { "html" ~ identifier }
 html_attribute_key = _{ identifier }
 html_attribute_plain_value = @{ (!("\"" | "{") ~ ANY)+ }
 // Silent recursive rule for simpler parsing of multiple attribute values. 
@@ -39,7 +38,9 @@ html_tag = {
   html_content ~
   "</" ~ POP ~ ">" }
 
-block_statement_start = _{ "{" ~ html_statement ~ "}" }
+block_type = { "html" }
+// TODO: Add arguments
+block_statement_start = _{ "{" ~ block_type ~ identifier ~ "()" ~ "}" }
 block_content = { html_content }
 block_statement_end = _{ "{/}" }
 block_statement = {

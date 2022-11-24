@@ -1,5 +1,5 @@
 {package simple}
 
-{html hello}
+{html hello()}
   <p>Hello, world!</p>
 {/}
