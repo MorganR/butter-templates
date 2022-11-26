@@ -1,3 +1,5 @@
+use pest::Parser;
+
 #[derive(Parser)]
 #[grammar = "parser/grammar.pest"] // relative to src
 pub struct ButterParser;
@@ -7,8 +9,6 @@ mod tests {
     use std::result::Result::Err;
 
     use super::*;
-
-    use pest::Parser;
 
     macro_rules! assert_result_pairs {
         ($result:ident, $expected:expr) => {
