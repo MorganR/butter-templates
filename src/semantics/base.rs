@@ -1,6 +1,7 @@
 use pest::iterators::{Pair, Pairs};
 use std::collections::HashMap;
 use std::convert::AsRef;
+use std::fmt::Display;
 use std::result::Result;
 use std::{fmt, rc::Rc};
 use strum::IntoEnumIterator;
@@ -67,9 +68,9 @@ pub enum Kind {
     Primitive(PrimitiveKind),
     /// Sanitized HTML content.
     HTML,
-    /// A sanitized HTML attribute (eg. id="1").
+    /// One or more sanitized HTML attributes (eg. id="1").
     HTMLAttr,
-    /// A sanitized HTML attribute value, that sits inside the quotation marks (eg. true).
+    /// One or more sanitized HTML attribute values, (content that sits inside the quotation marks, such as 'foo bar' in 'class="foo bar"').
     HTMLAttrValue,
 }
 
@@ -143,12 +144,12 @@ pub enum SemanticContext {
 }
 
 #[derive(Debug)]
-pub enum AttrValue {
+pub enum HTMLAttrValue {
     Expression(Expression),
     Text(Rc<str>),
 }
 
-impl AttrValue {
+impl HTMLAttrValue {
     fn from_pair<'a>(pair: &Pair<'a, Rule>, ctx: &mut Context) -> Result<Self, Error> {
         validate_context!(
             ctx,
@@ -176,12 +177,12 @@ impl AttrValue {
 }
 
 #[derive(Debug)]
-pub struct AttrKeyValue {
-    key: Rc<str>,
-    value: Vec<AttrValue>,
+pub struct HTMLAttrKeyValue {
+    pub key: Rc<str>,
+    pub value: Vec<HTMLAttrValue>,
 }
 
-impl AttrKeyValue {
+impl HTMLAttrKeyValue {
     fn from_pairs<'a>(
         parent: &Pair<'a, Rule>,
         mut pairs: Pairs<'a, Rule>,
@@ -205,10 +206,10 @@ impl AttrKeyValue {
         let mut values = vec![];
         while let Some(value_pair) = pairs.next() {
             // TODO: possibly more validation here for characters that need to be escaped.
-            values.push(AttrValue::from_pair(&value_pair, ctx)?);
+            values.push(HTMLAttrValue::from_pair(&value_pair, ctx)?);
         }
         ctx.pop_semantic_context();
-        return Ok(AttrKeyValue {
+        return Ok(HTMLAttrKeyValue {
             key: key,
             value: values,
         });
@@ -216,12 +217,12 @@ impl AttrKeyValue {
 }
 
 #[derive(Debug)]
-pub enum Attr {
+pub enum HTMLAttr {
     Expression(Expression),
-    KeyValue(AttrKeyValue),
+    KeyValue(HTMLAttrKeyValue),
 }
 
-impl Attr {
+impl HTMLAttr {
     fn from_pair<'a>(pair: Pair<'a, Rule>, ctx: &mut Context) -> Result<Self, Error> {
         let pair_ref = &pair;
         validate_context!(
@@ -248,7 +249,7 @@ impl Attr {
             },
             (Rule::html_attribute_key),
             {
-                return Ok(Attr::KeyValue(AttrKeyValue::from_pairs(
+                return Ok(HTMLAttr::KeyValue(HTMLAttrKeyValue::from_pairs(
                     &first_pair,
                     attr_pairs,
                     ctx,
@@ -263,7 +264,7 @@ pub struct TagData {
     /// The name/type of the tag (eg. h1 or p).
     name: Rc<str>,
     /// The attributes on the tag.
-    attributes: Vec<Attr>,
+    attributes: Vec<HTMLAttr>,
 }
 
 #[derive(Debug, AsRefStr, EnumIter)]
@@ -300,8 +301,8 @@ impl VoidTagName {
 
 #[derive(Debug)]
 pub struct VoidTag {
-    name: VoidTagName,
-    attributes: Vec<Attr>,
+    pub name: VoidTagName,
+    pub attributes: Vec<HTMLAttr>,
 }
 
 impl VoidTag {
@@ -320,7 +321,7 @@ impl VoidTag {
         ctx.push_semantic_context(SemanticContext::HTMLTag(Rc::from(tag_name)));
         let mut attributes = vec![];
         while let Some(attr_pair) = pairs.next() {
-            match Attr::from_pair(attr_pair, ctx) {
+            match HTMLAttr::from_pair(attr_pair, ctx) {
                 Err(error) => ctx.add_error(error),
                 Ok(attr) => attributes.push(attr),
             }
@@ -334,12 +335,9 @@ impl VoidTag {
 }
 
 #[derive(Debug)]
-pub struct OpenCloseTagName(Rc<str>);
-
-#[derive(Debug)]
 pub struct OpenTag {
-    name: OpenCloseTagName,
-    attributes: Vec<Attr>,
+    pub name: Rc<str>,
+    pub attributes: Vec<HTMLAttr>,
 }
 
 impl OpenTag {
@@ -356,14 +354,14 @@ impl OpenTag {
         ctx.push_semantic_context(SemanticContext::HTMLTag(Rc::clone(&tag_name)));
         let mut attributes = vec![];
         while let Some(attr_pair) = pairs.next() {
-            match Attr::from_pair(attr_pair, ctx) {
+            match HTMLAttr::from_pair(attr_pair, ctx) {
                 Err(error) => ctx.add_error(error),
                 Ok(attr) => attributes.push(attr),
             }
         }
         ctx.pop_semantic_context();
         return Ok(OpenTag {
-            name: OpenCloseTagName(tag_name),
+            name: tag_name,
             attributes: attributes,
         });
     }
@@ -376,7 +374,7 @@ pub enum HTMLTag {
     /// An open tag, eg. <h1>, which can have content, and normally has a closing tag.
     Open(OpenTag),
     /// A closing tag, eg. </h1>.
-    Close(OpenCloseTagName),
+    Close(Rc<str>),
 }
 
 pub struct HTMLTokenizer;
@@ -413,9 +411,7 @@ impl Tokenizer for HTMLTokenizer {
                 let mut tag_pairs = pair.clone().into_inner();
                 let tag_pair = tag_pairs.next().ok_or(Error::missing_pair(&pair))?;
                 let tag_name = process_pair!(tag_pair, (Rule::identifier), { tag_pair.as_str() },);
-                ctx.push_token(Token::HTMLTag(HTMLTag::Close(OpenCloseTagName(Rc::from(
-                    tag_name,
-                )))));
+                ctx.push_token(Token::HTMLTag(HTMLTag::Close(Rc::from(tag_name))));
                 assert_no_more_pairs!(tag_pairs);
             },
             (Rule::html_text),
@@ -437,8 +433,6 @@ pub enum Token {
     HTMLTag(HTMLTag),
     /// HTML-safe text.
     HTMLText(Rc<str>),
-    /// Generic text.
-    Text(Rc<str>),
 }
 
 /// Defines identifiers in a given scope.

@@ -4,35 +4,36 @@ mod base;
 use pest::iterators::{Pair, Pairs};
 
 use crate::parser::Rule;
-use base::{
-    BlockMetadata, Context, Entity, Error, FromPair, HTMLTokenizer, Kind, Scope, Token, Tokenizer,
-};
+use base::{Context, Entity, FromPair, HTMLTokenizer, Scope, SemanticContext, Tokenizer};
 use std::path::Path;
 use std::rc::Rc;
 use std::result::Result;
 
-use self::base::SemanticContext;
+pub use base::{
+    BlockMetadata, Error, Expression, HTMLAttr, HTMLAttrValue, HTMLTag, Kind, OpenTag,
+    PrimitiveKind, Token, VoidTag, VoidTagName,
+};
 
 /// A template block (i.e. top-level function).
 #[derive(Debug)]
-struct Block {
+pub struct Block {
     /// The name of this block.
-    name: Rc<str>,
+    pub name: Rc<str>,
     /// The contents of the block.
-    contents: Vec<Token>,
+    pub contents: Vec<Token>,
     /// Arguments and data type of this block.
-    metadata: Rc<BlockMetadata>,
+    pub metadata: Rc<BlockMetadata>,
 }
 
 /// A butter package, corresponding to a single butter file.
 #[derive(Debug)]
 pub struct Package<'a> {
     /// The filepath of this package.
-    path: &'a Path,
+    pub path: &'a Path,
     /// The name of this package, to be used as the module/namespace/package name in output.
-    name: Rc<str>,
+    pub name: Rc<str>,
     /// The blocks defined in this package.
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
     // TODO: Add imports.
 }
 

@@ -6,10 +6,13 @@ extern crate strum_macros;
 
 mod parser;
 mod semantics;
+mod translation;
+mod translators;
 
 use std::{fs, path::Path, process::exit};
 
 use crate::parser::{ButterParser, Rule};
+use crate::translation::Translator;
 use clap::Parser as ClapParser;
 use pest::Parser;
 
@@ -43,5 +46,9 @@ fn main() {
         println!("Package error: {}", maybe_package.err().unwrap());
         exit(1);
     }
-    println!("Package: {:?}", maybe_package.unwrap());
+    let package = maybe_package.unwrap();
+    println!("Package:\n{:?}", package);
+
+    let translation = translators::Rust::translate(&package);
+    println!("Translation:\n{}", translation);
 }
